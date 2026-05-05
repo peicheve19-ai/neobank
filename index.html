@@ -1,0 +1,886 @@
+<!-- neobank-firebase.html – Единый файл с общим топом на Firebase -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeoBank — Онлайн Банк</title>
+    <!-- Firebase SDK (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --bg: #f0f4f8;
+            --card-bg: #ffffff;
+            --sidebar-bg: #ffffff;
+            --primary: #7c8ce0;
+            --primary-hover: #5a6fd6;
+            --primary-light: #eef0fb;
+            --accent-green: #6dcdb8;
+            --accent-green-bg: #e8f8f4;
+            --accent-red: #e8857c;
+            --accent-red-bg: #fef0ef;
+            --accent-yellow: #f0c060;
+            --accent-yellow-bg: #fef9ee;
+            --text: #2d3436;
+            --text-secondary: #636e72;
+            --text-muted: #999;
+            --border: #e8ecf1;
+            --shadow: 0 2px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-xs: 6px;
+            --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --gradient-card: linear-gradient(135deg, #7c8ce0, #a78bfa);
+            --gradient-bitcoin: linear-gradient(135deg, #f7931a, #ffb347);
+            --gradient-ethereum: linear-gradient(135deg, #627eea, #8b9cf7);
+            --toast-bg: #333;
+        }
+        .dark-theme {
+            --bg: #1a1d24;
+            --card-bg: #23262d;
+            --sidebar-bg: #1e2027;
+            --primary: #8b9cf7;
+            --primary-hover: #7a8ce6;
+            --primary-light: #232840;
+            --accent-green: #5ec4ac;
+            --accent-green-bg: #1a2e2a;
+            --accent-red: #e8857c;
+            --accent-red-bg: #2e1f1e;
+            --accent-yellow: #d4a84b;
+            --accent-yellow-bg: #2e2a1e;
+            --text: #e0e0e0;
+            --text-secondary: #a0a4a8;
+            --text-muted: #777;
+            --border: #333840;
+            --shadow: 0 2px 12px rgba(0,0,0,0.25);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+            --toast-bg: #444;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100vh; transition: background var(--transition), color var(--transition); overflow-x:hidden; }
+        #auth-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; background:linear-gradient(135deg, #e8ecf8 0%, #f0f4f8 40%, #fdf2f8 100%); transition:background var(--transition); }
+        .dark-theme #auth-screen { background:linear-gradient(135deg, #1a1d24 0%, #1e2230 40%, #1f1a24 100%); }
+        .auth-container { background:var(--card-bg); border-radius:20px; padding:40px 36px; width:100%; max-width:420px; box-shadow:var(--shadow-lg); transition:all var(--transition); position:relative; overflow:hidden; }
+        .auth-container::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:var(--gradient-card); border-radius:20px 20px 0 0; }
+        .auth-logo { font-size:2rem; font-weight:700; text-align:center; margin-bottom:6px; background:var(--gradient-card); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .auth-subtitle { text-align:center; color:var(--text-secondary); font-size:0.9rem; margin-bottom:28px; }
+        .auth-tabs { display:flex; gap:0; margin-bottom:24px; background:var(--bg); border-radius:30px; padding:4px; }
+        .auth-tab { flex:1; padding:10px; text-align:center; border-radius:28px; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all var(--transition); color:var(--text-secondary); border:none; background:transparent; }
+        .auth-tab.active { background:var(--card-bg); color:var(--primary); box-shadow:var(--shadow); }
+        .auth-form { display:flex; flex-direction:column; gap:14px; }
+        .auth-form.hidden { display:none; }
+        .input-group { display:flex; flex-direction:column; gap:5px; }
+        .input-group label { font-size:0.8rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; }
+        .input-group input { padding:12px 16px; border:2px solid var(--border); border-radius:var(--radius-sm); font-size:1rem; background:var(--bg); color:var(--text); transition:all var(--transition); outline:none; font-family:var(--font); }
+        .input-group input:focus { border-color:var(--primary); box-shadow:0 0 0 4px var(--primary-light); }
+        .btn { padding:13px 24px; border:none; border-radius:30px; cursor:pointer; font-weight:700; font-size:0.95rem; transition:all var(--transition); font-family:var(--font); letter-spacing:0.3px; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-primary { background:var(--primary); color:#fff; width:100%; }
+        .btn-primary:hover { background:var(--primary-hover); transform:translateY(-2px); box-shadow:0 6px 20px rgba(124,140,224,0.35); }
+        .btn-primary:active { transform:translateY(0); box-shadow:none; }
+        .btn-sm { padding:8px 16px; font-size:0.8rem; border-radius:20px; }
+        .btn-outline { background:transparent; border:2px solid var(--primary); color:var(--primary); }
+        .btn-outline:hover { background:var(--primary-light); }
+        .btn-danger { background:var(--accent-red); color:#fff; }
+        .btn-danger:hover { opacity:0.85; }
+        .btn-success { background:var(--accent-green); color:#fff; }
+        .btn-success:hover { opacity:0.85; }
+        .error-msg { color:var(--accent-red); font-size:0.8rem; min-height:18px; transition:all var(--transition); }
+        #main-screen { display:none; min-height:100vh; }
+        #main-screen.active { display:flex; }
+        .sidebar { width:240px; min-width:240px; background:var(--sidebar-bg); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:20px 14px; position:sticky; top:0; height:100vh; z-index:100; transition:all var(--transition); overflow-y:auto; }
+        .sidebar-logo { font-size:1.5rem; font-weight:700; text-align:center; margin-bottom:10px; background:var(--gradient-card); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .sidebar-user { display:flex; align-items:center; gap:10px; padding:12px; background:var(--bg); border-radius:var(--radius-sm); margin-bottom:16px; }
+        .sidebar-avatar { width:38px; height:38px; border-radius:50%; object-fit:cover; background:var(--primary-light); flex-shrink:0; }
+        .sidebar-username { font-weight:600; font-size:0.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .nav-menu { list-style:none; display:flex; flex-direction:column; gap:4px; flex:1; }
+        .nav-item { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition); font-weight:500; font-size:0.9rem; color:var(--text-secondary); border:none; background:transparent; width:100%; text-align:left; font-family:var(--font); }
+        .nav-item:hover { background:var(--bg); color:var(--text); }
+        .nav-item.active { background:var(--primary-light); color:var(--primary); font-weight:700; }
+        .nav-icon { font-size:1.2rem; width:24px; text-align:center; }
+        .sidebar-footer { border-top:1px solid var(--border); padding-top:12px; margin-top:8px; }
+        .btn-logout { width:100%; background:transparent; border:1px solid var(--border); color:var(--text-secondary); padding:10px; border-radius:20px; cursor:pointer; font-weight:600; transition:all var(--transition); font-family:var(--font); }
+        .btn-logout:hover { background:var(--accent-red-bg); color:var(--accent-red); border-color:var(--accent-red); }
+        .main-content { flex:1; padding:24px 28px; overflow-y:auto; max-height:100vh; transition:all var(--transition); }
+        .page { display:none; animation:fadeSlideIn 0.35s ease; }
+        .page.active { display:block; }
+        @keyframes fadeSlideIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        .page-title { font-size:1.6rem; font-weight:700; margin-bottom:20px; letter-spacing:-0.3px; }
+        .card { background:var(--card-bg); border-radius:var(--radius); padding:22px 24px; box-shadow:var(--shadow); transition:all var(--transition); margin-bottom:16px; border:1px solid var(--border); }
+        .card:hover { box-shadow:var(--shadow-lg); }
+        .card-header { font-weight:700; font-size:0.8rem; margin-bottom:12px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; }
+        .balance-display { font-size:2.8rem; font-weight:800; letter-spacing:-1px; background:var(--gradient-card); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin:4px 0; }
+        .balance-sub { font-size:0.9rem; color:var(--text-secondary); }
+        .grid-2 { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; }
+        .grid-3 { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:14px; }
+        .currency-badge { display:inline-block; padding:6px 12px; border-radius:20px; font-weight:600; font-size:0.8rem; background:var(--primary-light); color:var(--primary); margin:3px; }
+        .rate-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.9rem; }
+        .rate-row:last-child { border-bottom:none; }
+        .positive { color:var(--accent-green); }
+        .negative { color:var(--accent-red); }
+        table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+        th, td { padding:10px 8px; text-align:left; border-bottom:1px solid var(--border); }
+        th { font-weight:700; color:var(--text-secondary); text-transform:uppercase; font-size:0.7rem; letter-spacing:0.5px; }
+        .table-wrapper { overflow-x:auto; max-height:350px; overflow-y:auto; }
+        .crypto-card { background:var(--gradient-bitcoin); color:#fff; border-radius:var(--radius); padding:20px; position:relative; overflow:hidden; }
+        .crypto-card.eth { background:var(--gradient-ethereum); }
+        .crypto-name { font-weight:700; font-size:1.1rem; }
+        .crypto-balance { font-size:1.6rem; font-weight:800; margin:6px 0; }
+        .crypto-usd { font-size:0.8rem; opacity:0.85; }
+        .virtual-card { background:var(--gradient-card); border-radius:18px; padding:24px; color:#fff; position:relative; min-height:190px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 10px 30px rgba(124,140,224,0.35); max-width:380px; }
+        .card-number { font-size:1.4rem; letter-spacing:3px; font-family:'Courier New', monospace; font-weight:700; }
+        .card-expiry { font-size:0.9rem; opacity:0.9; }
+        .card-holder { font-size:0.9rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; }
+        .card-chip { width:40px; height:30px; background:rgba(255,255,255,0.3); border-radius:6px; margin-bottom:8px; }
+        .clicker-btn { width:140px; height:140px; border-radius:50%; background:var(--gradient-card); border:none; color:#fff; font-size:1.1rem; font-weight:700; cursor:pointer; transition:all 0.1s ease; box-shadow:0 8px 28px rgba(124,140,224,0.4); user-select:none; font-family:var(--font); position:relative; }
+        .clicker-btn:active { transform:scale(0.9); box-shadow:0 4px 14px rgba(124,140,224,0.5); }
+        .clicker-btn::after { content:''; position:absolute; inset:-6px; border-radius:50%; border:3px dashed var(--primary); opacity:0.4; animation:spin 12s linear infinite; pointer-events:none; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .risk-btn { padding:16px 36px; border-radius:30px; background:linear-gradient(135deg, #f0c060, #e8a030); color:#fff; border:none; font-weight:700; font-size:1.1rem; cursor:pointer; transition:all var(--transition); box-shadow:0 6px 20px rgba(240,192,96,0.4); font-family:var(--font); animation:pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { box-shadow:0 6px 20px rgba(240,192,96,0.4); } 50% { box-shadow:0 6px 36px rgba(240,192,96,0.7); } }
+        .risk-btn:hover { transform:translateY(-3px); }
+        .risk-btn:active { transform:scale(0.95); }
+        .avatar-upload { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+        .avatar-preview { width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--primary); background:var(--bg); }
+        .theme-toggle { display:flex; gap:10px; align-items:center; }
+        .theme-btn { width:40px; height:40px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:all var(--transition); }
+        .theme-btn.light { background:#f0f4f8; border-color:#7c8ce0; }
+        .theme-btn.dark { background:#1a1d24; border-color:#555; }
+        .theme-btn.active-theme { border-color:var(--primary); box-shadow:0 0 0 5px var(--primary-light); }
+        select { padding:10px 14px; border-radius:var(--radius-xs); border:2px solid var(--border); background:var(--bg); color:var(--text); font-family:var(--font); font-size:0.9rem; cursor:pointer; transition:all var(--transition); }
+        select:focus { border-color:var(--primary); outline:none; }
+        #toast-container { position:fixed; top:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px; pointer-events:none; }
+        .toast { background:var(--toast-bg); color:#fff; padding:14px 20px; border-radius:12px; font-weight:500; font-size:0.9rem; box-shadow:0 6px 24px rgba(0,0,0,0.3); animation:toastIn 0.4s ease, toastOut 0.4s ease 2.6s forwards; pointer-events:auto; max-width:380px; font-family:var(--font); }
+        .toast.success { border-left:4px solid var(--accent-green); }
+        .toast.error { border-left:4px solid var(--accent-red); }
+        .toast.info { border-left:4px solid var(--primary); }
+        @keyframes toastIn { from { opacity:0; transform:translateX(100px); } to { opacity:1; transform:translateX(0); } }
+        @keyframes toastOut { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(100px); } }
+        @media (max-width:768px) {
+            #main-screen.active { flex-direction:column; }
+            .sidebar { width:100%; min-width:100%; height:auto; position:relative; flex-direction:row; flex-wrap:wrap; padding:10px; gap:4px; justify-content:center; border-right:none; border-bottom:1px solid var(--border); overflow-x:auto; flex-shrink:0; }
+            .sidebar-logo, .sidebar-user, .sidebar-footer { display:none; }
+            .nav-menu { flex-direction:row; flex-wrap:nowrap; gap:2px; overflow-x:auto; }
+            .nav-item { padding:8px 12px; font-size:0.75rem; white-space:nowrap; border-radius:18px; gap:4px; }
+            .nav-icon { font-size:1rem; width:auto; }
+            .main-content { padding:16px 12px; max-height:none; }
+            .balance-display { font-size:2rem; }
+            .virtual-card { max-width:100%; }
+            .grid-2, .grid-3 { grid-template-columns:1fr; }
+            .clicker-btn { width:100px; height:100px; font-size:0.9rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ЭКРАН АВТОРИЗАЦИИ -->
+    <div id="auth-screen">
+        <div class="auth-container">
+            <div class="auth-logo">🏦 NeoBank</div>
+            <p class="auth-subtitle">Современный онлайн-банкинг</p>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Вход</button>
+                <button class="auth-tab" data-tab="register">Регистрация</button>
+            </div>
+            <form id="login-form" class="auth-form">
+                <div class="input-group"><label>Имя пользователя</label><input type="text" id="login-name" placeholder="Ваше имя" maxlength="10" required></div>
+                <div class="input-group"><label>Пароль</label><input type="password" id="login-password" placeholder="Пароль" required></div>
+                <p class="error-msg" id="login-error"></p>
+                <button type="submit" class="btn btn-primary">🔑 Войти</button>
+            </form>
+            <form id="register-form" class="auth-form hidden">
+                <div class="input-group"><label>Имя (1–10 символов)</label><input type="text" id="reg-name" placeholder="Придумайте имя" maxlength="10" required></div>
+                <div class="input-group"><label>Пароль</label><input type="password" id="reg-password" placeholder="Придумайте пароль" required minlength="3"></div>
+                <p class="error-msg" id="reg-error"></p>
+                <button type="submit" class="btn btn-primary">✨ Зарегистрироваться</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ОСНОВНОЙ ЭКРАН -->
+    <div id="main-screen">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">🏦 NeoBank</div>
+            <div class="sidebar-user" id="sidebar-user-info">
+                <img class="sidebar-avatar" id="sidebar-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23d0d5f0'/%3E%3Ctext x='20' y='27' text-anchor='middle' font-size='18' fill='%237c8ce0'%3E👤%3C/text%3E%3C/svg%3E" alt="avatar">
+                <span class="sidebar-username" id="sidebar-username">User</span>
+            </div>
+            <ul class="nav-menu" id="nav-menu">
+                <li><button class="nav-item active" data-page="dashboard"><span class="nav-icon">🏠</span> Главная</button></li>
+                <li><button class="nav-item" data-page="transfers"><span class="nav-icon">💸</span> Переводы</button></li>
+                <li><button class="nav-item" data-page="crypto"><span class="nav-icon">₿</span> Крипто</button></li>
+                <li><button class="nav-item" data-page="card-page"><span class="nav-icon">💳</span> Карта</button></li>
+                <li><button class="nav-item" data-page="games"><span class="nav-icon">🎮</span> Игры</button></li>
+                <li><button class="nav-item" data-page="profile"><span class="nav-icon">👤</span> Профиль</button></li>
+                <li><button class="nav-item" data-page="top-users"><span class="nav-icon">🏆</span> Топ</button></li>
+                <li><button class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span> Настройки</button></li>
+            </ul>
+            <div class="sidebar-footer"><button class="btn-logout" id="btn-logout">🚪 Выйти</button></div>
+        </aside>
+        <main class="main-content" id="main-content">
+            <!-- Дашборд -->
+            <div class="page active" id="page-dashboard">
+                <h1 class="page-title">👋 Добро пожаловать!</h1>
+                <div class="card"><div class="card-header">💰 Ваш баланс</div><div class="balance-display" id="balance-uah">0.00 ₴</div><div class="balance-sub" id="balance-equivalents"></div></div>
+                <div class="grid-2">
+                    <div class="card"><div class="card-header">📊 Курсы валют</div><div id="exchange-rates-display"></div></div>
+                    <div class="card"><div class="card-header">🪙 Криптовалюты</div><div id="crypto-rates-display"></div></div>
+                </div>
+                <div class="card"><div class="card-header">📋 Последние транзакции</div><div class="table-wrapper" id="recent-transactions"><p style="color:var(--text-muted)">История пуста</p></div></div>
+            </div>
+            <!-- Переводы -->
+            <div class="page" id="page-transfers">
+                <h1 class="page-title">💸 Переводы</h1>
+                <div class="card">
+                    <div class="card-header">Отправить перевод</div>
+                    <div class="input-group" style="margin-bottom:10px;"><label>Получатель (имя пользователя)</label><input type="text" id="transfer-recipient" placeholder="Имя получателя" maxlength="10"></div>
+                    <div class="input-group" style="margin-bottom:10px;"><label>Сумма</label><input type="number" id="transfer-amount" placeholder="0.00" min="0.01" step="0.01"></div>
+                    <div class="input-group" style="margin-bottom:14px;"><label>Валюта</label><select id="transfer-currency"><option value="UAH">₴ Гривна (UAH)</option><option value="USD">$ Доллар (USD)</option><option value="EUR">€ Евро (EUR)</option><option value="RUB">₽ Рубль (RUB)</option><option value="KZT">₸ Тенге (KZT)</option></select></div>
+                    <button class="btn btn-primary" id="btn-transfer" style="width:auto;">📤 Отправить</button>
+                    <p class="error-msg" id="transfer-error"></p>
+                </div>
+                <div class="card"><div class="card-header">📋 История переводов</div><div class="table-wrapper" id="transfer-history"><p style="color:var(--text-muted)">История пуста</p></div></div>
+            </div>
+            <!-- Крипто -->
+            <div class="page" id="page-crypto">
+                <h1 class="page-title">₿ Криптовалюты</h1>
+                <div class="grid-2">
+                    <div class="crypto-card" id="btc-card"><div>₿</div><div class="crypto-name">Bitcoin (BTC)</div><div class="crypto-balance" id="btc-balance">0.00000000 BTC</div><div class="crypto-usd" id="btc-usd-value">≈ 0.00 ₴</div></div>
+                    <div class="crypto-card eth" id="eth-card"><div>Ξ</div><div class="crypto-name">Ethereum (ETH)</div><div class="crypto-balance" id="eth-balance">0.00000000 ETH</div><div class="crypto-usd" id="eth-usd-value">≈ 0.00 ₴</div></div>
+                </div>
+                <div class="card"><div class="card-header">🛒 Купить / Продать криптовалюту</div><div class="input-group" style="margin-bottom:10px;"><label>Криптовалюта</label><select id="crypto-select"><option value="BTC">Bitcoin (BTC)</option><option value="ETH">Ethereum (ETH)</option></select></div><div class="input-group" style="margin-bottom:10px;"><label>Сумма в гривнах</label><input type="number" id="crypto-amount-uah" placeholder="Сумма в ₴" min="1" step="1"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-success" id="btn-buy-crypto">🟢 Купить</button><button class="btn btn-danger" id="btn-sell-crypto">🔴 Продать</button></div><p class="error-msg" id="crypto-error"></p></div>
+                <div class="card"><div class="card-header">📤 Крипто-перевод пользователю</div><div class="input-group" style="margin-bottom:10px;"><label>Получатель</label><input type="text" id="crypto-transfer-recipient" placeholder="Имя получателя" maxlength="10"></div><div class="input-group" style="margin-bottom:10px;"><label>Криптовалюта</label><select id="crypto-transfer-coin"><option value="BTC">BTC</option><option value="ETH">ETH</option></select></div><div class="input-group" style="margin-bottom:10px;"><label>Количество</label><input type="number" id="crypto-transfer-amount" placeholder="0.0001" min="0.00000001" step="0.00000001"></div><button class="btn btn-primary" id="btn-crypto-transfer" style="width:auto;">📤 Отправить крипту</button><p class="error-msg" id="crypto-transfer-error"></p></div>
+            </div>
+            <!-- Виртуальная карта -->
+            <div class="page" id="page-card-page">
+                <h1 class="page-title">💳 Виртуальная карта</h1>
+                <div class="virtual-card" id="virtual-card-display"><div class="card-chip"></div><div class="card-number" id="card-number-display">•••• •••• •••• ••••</div><div style="display:flex;justify-content:space-between;align-items:flex-end;"><div><div class="card-holder" id="card-holder-display">CARDHOLDER</div><div class="card-expiry" id="card-expiry-display">MM/YY</div></div><div style="font-size:0.8rem;">CVV: <span id="card-cvv-display">•••</span></div></div></div>
+                <button class="btn btn-outline btn-sm" id="btn-regenerate-card" style="margin-top:10px;">🔄 Сгенерировать новую карту</button>
+                <div class="card" style="margin-top:16px;"><div class="card-header">💸 Оплата картой (симуляция)</div><div class="input-group" style="margin-bottom:10px;"><label>Сумма оплаты (₴)</label><input type="number" id="payment-amount" placeholder="Сумма" min="1" step="1"></div><button class="btn btn-primary" id="btn-pay" style="width:auto;">💳 Оплатить</button><p class="error-msg" id="payment-error"></p></div>
+            </div>
+            <!-- Игры -->
+            <div class="page" id="page-games">
+                <h1 class="page-title">🎮 Игры</h1>
+                <div class="grid-2">
+                    <div class="card" style="text-align:center;"><div class="card-header">👆 Кликер (+0.10 ₴ за клик)</div><button class="clicker-btn" id="btn-clicker">КЛИК</button><p style="margin-top:12px;font-weight:600;">Кликов: <span id="click-count">0</span></p><p style="color:var(--text-secondary);">Заработано: <span id="click-earned">0.00</span> ₴</p></div>
+                    <div class="card" style="text-align:center;"><div class="card-header">🎲 Кнопка риска</div><button class="risk-btn" id="btn-risk">РИСК!</button><p style="margin-top:12px;font-weight:600;">Результат: <span id="risk-result">—</span></p><p style="color:var(--text-secondary);font-size:0.8rem;">-1₴ | +0.5₴ | +1₴ | +2₴ | +3₴</p></div>
+                </div>
+            </div>
+            <!-- Профиль -->
+            <div class="page" id="page-profile">
+                <h1 class="page-title">👤 Профиль</h1>
+                <div class="card"><div class="card-header">Аватар</div><div class="avatar-upload"><img class="avatar-preview" id="avatar-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23d0d5f0'/%3E%3Ctext x='20' y='27' text-anchor='middle' font-size='18' fill='%237c8ce0'%3E👤%3C/text%3E%3C/svg%3E" alt="avatar"><input type="file" id="avatar-input" accept="image/*" style="display:none;"><button class="btn btn-outline btn-sm" id="btn-upload-avatar">📷 Загрузить фото</button></div></div>
+                <div class="card"><div class="card-header">Изменить имя</div><div class="input-group" style="margin-bottom:10px;"><label>Новое имя (1–10 символов)</label><input type="text" id="new-username" placeholder="Новое имя" maxlength="10"></div><button class="btn btn-primary btn-sm" id="btn-change-name">✏️ Сменить имя</button><p class="error-msg" id="profile-error"></p></div>
+                <div class="card"><div class="card-header">📊 Статистика</div><p>Всего кликов: <strong id="stat-clicks">0</strong></p><p>Всего транзакций: <strong id="stat-tx">0</strong></p></div>
+            </div>
+            <!-- Топ -->
+            <div class="page" id="page-top-users">
+                <h1 class="page-title">🏆 Топ пользователей</h1>
+                <div class="card"><div class="card-header">Рейтинг по общему балансу (₴)</div><div class="table-wrapper" id="top-users-table"><p style="color:var(--text-muted)">Загрузка...</p></div></div>
+                <div class="card"><div class="card-header">Рейтинг по криптовалюте (BTC + ETH в ₴)</div><div class="table-wrapper" id="top-crypto-table"><p style="color:var(--text-muted)">Загрузка...</p></div></div>
+            </div>
+            <!-- Настройки -->
+            <div class="page" id="page-settings">
+                <h1 class="page-title">⚙️ Настройки</h1>
+                <div class="card"><div class="card-header">🎨 Тема интерфейса</div><div class="theme-toggle"><button class="theme-btn light active-theme" id="theme-light" title="Светлая тема"></button><button class="theme-btn dark" id="theme-dark" title="Тёмная тема"></button><span style="color:var(--text-secondary);font-size:0.9rem;">Выберите тему</span></div></div>
+                <div class="card"><div class="card-header">🗑️ Сброс данных</div><p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:10px;">Удалить все данные аккаунта (необратимо)</p><button class="btn btn-danger btn-sm" id="btn-reset-account">⚠️ Сбросить аккаунт</button></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Тосты -->
+    <div id="toast-container"></div>
+
+    <script>
+        // ========== FIREBASE ==========
+        const firebaseConfig = {
+            apiKey: "AIzaSyA3ZmZM82FQezZKUdZ34HrpGZKK9WypW8M",
+            authDomain: "neobank-game.firebaseapp.com",
+            projectId: "neobank-game",
+            storageBucket: "neobank-game.firebasestorage.app",
+            messagingSenderId: "370614344817",
+            appId: "1:370614344817:web:e5b20ed5929661a3e20fd0",
+            measurementId: "G-B8BXBHBCRC6"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        console.log('Firebase connected');
+
+        // ========== CONSTANTS ==========
+        const EXCHANGE_RATES = { USD: 41.50, EUR: 44.80, RUB: 0.45, KZT: 0.092, UAH: 1.0 };
+        const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', RUB: '₽', KZT: '₸', UAH: '₴' };
+        const CURRENCY_NAMES = { USD: 'Доллар', EUR: 'Евро', RUB: 'Рубль', KZT: 'Тенге', UAH: 'Гривна' };
+        const CRYPTO_RATES = { BTC: 2700000, ETH: 105000 };
+
+        // ========== STORAGE (Firebase) ==========
+        const CURRENT_USER_KEY = 'neobank_current_user';
+        function getCurrentUser() { return localStorage.getItem(CURRENT_USER_KEY); }
+        function setCurrentUser(username) { localStorage.setItem(CURRENT_USER_KEY, username); }
+
+        async function loadAllUsers() {
+            const snap = await db.ref('users').once('value');
+            return snap.val() || {};
+        }
+
+        async function saveUser(username, data) {
+            return db.ref('users/' + username).set(data);
+        }
+
+        async function getCurrentUserData() {
+            const username = getCurrentUser();
+            if (!username) return null;
+            const snap = await db.ref('users/' + username).once('value');
+            return snap.val();
+        }
+
+        async function updateCurrentUserData(updates) {
+            const username = getCurrentUser();
+            if (!username) return;
+            const userRef = db.ref('users/' + username);
+            const snap = await userRef.once('value');
+            const current = snap.val() || {};
+            const merged = Object.assign(current, updates);
+            await userRef.set(merged);
+        }
+
+        function watchCurrentUser(callback) {
+            const username = getCurrentUser();
+            if (!username) return;
+            db.ref('users/' + username).on('value', snap => {
+                const data = snap.val();
+                if (data && callback) callback(data);
+            });
+        }
+
+        function unwatchCurrentUser() {
+            const username = getCurrentUser();
+            if (username) db.ref('users/' + username).off();
+        }
+
+        // ========== HELPERS ==========
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3100);
+        }
+
+        function generateCardInfo() {
+            const num = Array.from({ length: 16 }, () => Math.floor(Math.random() * 10)).join('');
+            const formatted = num.replace(/(\d{4})/g, '$1 ').trim();
+            const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
+            const year = String(new Date().getFullYear() + 2 + Math.floor(Math.random() * 3)).slice(-2);
+            const cvv = String(Math.floor(Math.random() * 900) + 100);
+            return { number: formatted, rawNumber: num, expiry: month + '/' + year, cvv };
+        }
+
+        async function addTransaction(tx) {
+            const username = getCurrentUser();
+            if (!username) return;
+            const data = await getCurrentUserData();
+            if (!data) return;
+            if (!data.transactions) data.transactions = [];
+            tx.date = new Date().toISOString();
+            tx.id = Date.now() + Math.random();
+            data.transactions.unshift(tx);
+            if (data.transactions.length > 100) data.transactions = data.transactions.slice(0, 100);
+            await saveUser(username, data);
+        }
+
+        function renderTransactions(containerId, transactions, limit = 30) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            if (!transactions || transactions.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted)">История пуста</p>';
+                return;
+            }
+            let html = '<table><thead><tr><th>Дата</th><th>Тип</th><th>От/Кому</th><th>Сумма</th></tr></thead><tbody>';
+            transactions.slice(0, limit).forEach(tx => {
+                const d = new Date(tx.date);
+                const dateStr = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                html += `<tr><td>${dateStr}</td><td>${tx.type || '—'}</td><td>${tx.counterparty || '—'}</td><td>${tx.displayAmount || tx.amount || '—'}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function updateSidebar(userData) {
+            document.getElementById('sidebar-username').textContent = userData.name;
+            const avatar = userData.avatar;
+            const src = (avatar && avatar.length > 100) ? avatar : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"%3E%3Ccircle cx="20" cy="20" r="20" fill="%23d0d5f0"/%3E%3Ctext x="20" y="27" text-anchor="middle" font-size="18" fill="%237c8ce0"%3E👤%3C/text%3E%3C/svg%3E';
+            document.getElementById('sidebar-avatar').src = src;
+            document.getElementById('avatar-preview').src = src;
+        }
+
+        // ========== NAVIGATION ==========
+        function navigateTo(pageName) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const page = document.getElementById('page-' + pageName);
+            if (page) page.classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navItem = document.querySelector(`[data-page="${pageName}"]`);
+            if (navItem) navItem.classList.add('active');
+            refreshPage(pageName);
+            if (window.innerWidth <= 768) {
+                document.getElementById('main-content').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        async function refreshPage(pageName) {
+            switch (pageName) {
+                case 'dashboard': await refreshDashboard(); break;
+                case 'transfers': await refreshTransfers(); break;
+                case 'crypto': await refreshCrypto(); break;
+                case 'card-page': await refreshCardPage(); break;
+                case 'games': await refreshGames(); break;
+                case 'profile': await refreshProfile(); break;
+                case 'top-users': await refreshTopUsers(); break;
+                case 'settings': await refreshSettings(); break;
+            }
+        }
+
+        // ========== PAGES REFRESH ==========
+        async function refreshDashboard() {
+            const user = await getCurrentUserData();
+            if (!user) return;
+            document.getElementById('balance-uah').textContent = user.balanceUAH.toFixed(2) + ' ₴';
+            let equiv = '';
+            for (const [cur, rate] of Object.entries(EXCHANGE_RATES)) {
+                if (cur === 'UAH') continue;
+                equiv += `<span class="currency-badge">${CURRENCY_SYMBOLS[cur]} ${(user.balanceUAH / rate).toFixed(2)}</span> `;
+            }
+            document.getElementById('balance-equivalents').innerHTML = equiv || '—';
+            let ratesHtml = '';
+            for (const [cur, rate] of Object.entries(EXCHANGE_RATES)) {
+                if (cur === 'UAH') continue;
+                ratesHtml += `<div class="rate-row"><span>${CURRENCY_SYMBOLS[cur]} ${CURRENCY_NAMES[cur]}</span><strong>${rate.toFixed(2)} ₴</strong></div>`;
+            }
+            document.getElementById('exchange-rates-display').innerHTML = ratesHtml;
+            let cryptoHtml = '';
+            for (const [coin, rate] of Object.entries(CRYPTO_RATES)) {
+                cryptoHtml += `<div class="rate-row"><span>🪙 ${coin}</span><strong>${rate.toLocaleString('ru-RU')} ₴</strong></div>`;
+            }
+            document.getElementById('crypto-rates-display').innerHTML = cryptoHtml;
+            renderTransactions('recent-transactions', user.transactions, 8);
+        }
+
+        async function refreshTransfers() {
+            const user = await getCurrentUserData();
+            if (!user) return;
+            const txs = (user.transactions || []).filter(t => t.category === 'transfer');
+            renderTransactions('transfer-history', txs);
+        }
+
+        async function refreshCrypto() {
+            const user = await getCurrentUserData();
+            if (!user) return;
+            const btc = (user.cryptoBalances && user.cryptoBalances.BTC) || 0;
+            const eth = (user.cryptoBalances && user.cryptoBalances.ETH) || 0;
+            document.getElementById('btc-balance').textContent = btc.toFixed(8) + ' BTC';
+            document.getElementById('btc-usd-value').textContent = '≈ ' + (btc * CRYPTO_RATES.BTC).toFixed(2) + ' ₴';
+            document.getElementById('eth-balance').textContent = eth.toFixed(8) + ' ETH';
+            document.getElementById('eth-usd-value').textContent = '≈ ' + (eth * CRYPTO_RATES.ETH).toFixed(2) + ' ₴';
+        }
+
+        async function refreshCardPage() {
+            const user = await getCurrentUserData();
+            if (!user) return;
+            const card = user.card || generateCardInfo();
+            document.getElementById('card-number-display').textContent = card.number;
+            document.getElementById('card-holder-display').textContent = (user.name || 'CARDHOLDER').toUpperCase();
+            document.getElementById('card-expiry-display').textContent = card.expiry;
+            document.getElementById('card-cvv-display').textContent = card.cvv;
+        }
+
+        async function refreshGames() {
+            const user = await getCurrentUserData();
+            if (!user) return;
+            document.getElementById('click-count').textContent = user.clickCount || 0;
+            document.getElementById('click-earned').textContent = (user.clickEarned || 0).toFixed(2);
+            document.getElementById('risk-result').textContent = '—';
+        }
+
+        async function refreshProfile() {
+            const user = await getCurrentUserData();
+            if (!user) return;
+            document.getElementById('stat-clicks').textContent = user.clickCount || 0;
+            document.getElementById('stat-tx').textContent = (user.transactions || []).length;
+        }
+
+        async function refreshTopUsers() {
+            const users = await loadAllUsers();
+            const ranked = Object.entries(users).map(([name, u]) => {
+                const cryptoValue = (u.cryptoBalances?.BTC || 0) * CRYPTO_RATES.BTC + (u.cryptoBalances?.ETH || 0) * CRYPTO_RATES.ETH;
+                return { name, balanceUAH: u.balanceUAH || 0, cryptoValue, total: (u.balanceUAH || 0) + cryptoValue };
+            }).sort((a, b) => b.total - a.total);
+            let topHtml = '<table><thead><tr><th>#</th><th>Имя</th><th>Баланс (₴)</th><th>Крипто (₴)</th><th>Всего (₴)</th></tr></thead><tbody>';
+            ranked.forEach((u, i) => {
+                let badge = i === 0 ? ' 🥇' : i === 1 ? ' 🥈' : i === 2 ? ' 🥉' : '';
+                topHtml += `<tr><td>${i+1}${badge}</td><td><strong>${u.name}</strong></td><td>${u.balanceUAH.toFixed(2)}</td><td>${u.cryptoValue.toFixed(2)}</td><td><strong>${u.total.toFixed(2)}</strong></td></tr>`;
+            });
+            topHtml += '</tbody></table>';
+            document.getElementById('top-users-table').innerHTML = topHtml || '<p>Нет данных</p>';
+            const cryptoRanked = [...ranked].sort((a, b) => b.cryptoValue - a.cryptoValue);
+            let cryptoHtml = '<table><thead><tr><th>#</th><th>Имя</th><th>Крипто-баланс (₴)</th></tr></thead><tbody>';
+            cryptoRanked.forEach((u, i) => cryptoHtml += `<tr><td>${i+1}</td><td><strong>${u.name}</strong></td><td>${u.cryptoValue.toFixed(2)} ₴</td></tr>`);
+            cryptoHtml += '</tbody></table>';
+            document.getElementById('top-crypto-table').innerHTML = cryptoHtml || '<p>Нет данных</p>';
+        }
+
+        async function refreshSettings() {
+            const user = await getCurrentUserData();
+            if (!user) return;
+            document.getElementById('theme-light').classList.toggle('active-theme', user.theme !== 'dark');
+            document.getElementById('theme-dark').classList.toggle('active-theme', user.theme === 'dark');
+        }
+
+        // ========== AUTH ==========
+        function showAuthScreen() {
+            document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('main-screen').classList.remove('active');
+            document.body.classList.remove('dark-theme');
+            unwatchCurrentUser();
+            localStorage.removeItem(CURRENT_USER_KEY);
+        }
+
+        async function showMainScreen() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('main-screen').classList.add('active');
+            const user = await getCurrentUserData();
+            if (user) {
+                applyTheme(user.theme || 'light');
+                updateSidebar(user);
+                watchCurrentUser((newData) => {
+                    updateSidebar(newData);
+                    if (document.getElementById('page-dashboard').classList.contains('active')) refreshDashboard();
+                });
+            }
+            navigateTo('dashboard');
+        }
+
+        function applyTheme(theme) {
+            document.body.classList.toggle('dark-theme', theme === 'dark');
+        }
+
+        function initAuth() {
+            document.querySelectorAll('.auth-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const isLogin = tab.dataset.tab === 'login';
+                    document.getElementById('login-form').classList.toggle('hidden', !isLogin);
+                    document.getElementById('register-form').classList.toggle('hidden', isLogin);
+                });
+            });
+
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('login-name').value.trim();
+                const password = document.getElementById('login-password').value;
+                const errorEl = document.getElementById('login-error');
+                if (!name || name.length < 1 || name.length > 10) { errorEl.textContent = 'Имя должно быть от 1 до 10 символов'; return; }
+                if (!password || password.length < 3) { errorEl.textContent = 'Пароль минимум 3 символа'; return; }
+                const data = await loadAllUsers();
+                const user = data[name];
+                if (!user) { errorEl.textContent = 'Пользователь не найден'; return; }
+                if (user.password !== password) { errorEl.textContent = 'Неверный пароль'; return; }
+                setCurrentUser(name);
+                showToast('✅ Добро пожаловать, ' + name + '!', 'success');
+                showMainScreen();
+            });
+
+            document.getElementById('register-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('reg-name').value.trim();
+                const password = document.getElementById('reg-password').value;
+                const errorEl = document.getElementById('reg-error');
+                if (!name || name.length < 1 || name.length > 10) { errorEl.textContent = 'Имя должно быть от 1 до 10 символов'; return; }
+                if (!/^[a-zA-Zа-яА-ЯёЁ0-9_]+$/.test(name)) { errorEl.textContent = 'Только буквы, цифры и _'; return; }
+                if (!password || password.length < 3) { errorEl.textContent = 'Пароль минимум 3 символа'; return; }
+                const users = await loadAllUsers();
+                if (users[name]) { errorEl.textContent = 'Пользователь уже существует'; return; }
+                const newUser = {
+                    name, password,
+                    balanceUAH: 100,
+                    cryptoBalances: { BTC: 0, ETH: 0 },
+                    card: generateCardInfo(),
+                    transactions: [],
+                    clickCount: 0,
+                    clickEarned: 0,
+                    avatar: '',
+                    theme: 'light'
+                };
+                await saveUser(name, newUser);
+                setCurrentUser(name);
+                showToast('🎉 Регистрация успешна! 100 ₴', 'success');
+                showMainScreen();
+            });
+
+            document.getElementById('btn-logout').addEventListener('click', () => {
+                if (confirm('Выйти?')) { showToast('👋 До свидания!', 'info'); showAuthScreen(); }
+            });
+        }
+
+        // ========== TRANSFERS ==========
+        function initFinance() {
+            document.getElementById('btn-transfer').addEventListener('click', async () => {
+                const recipient = document.getElementById('transfer-recipient').value.trim();
+                const amount = parseFloat(document.getElementById('transfer-amount').value);
+                const currency = document.getElementById('transfer-currency').value;
+                const errorEl = document.getElementById('transfer-error');
+                errorEl.textContent = '';
+                const currentUser = getCurrentUser();
+                if (!recipient) { errorEl.textContent = 'Укажите получателя'; return; }
+                if (recipient === currentUser) { errorEl.textContent = 'Нельзя самому себе'; return; }
+                if (isNaN(amount) || amount <= 0) { errorEl.textContent = 'Некорректная сумма'; return; }
+                const rate = EXCHANGE_RATES[currency] || 1;
+                const amountUAH = amount * rate;
+                const allUsers = await loadAllUsers();
+                const sender = allUsers[currentUser];
+                const receiver = allUsers[recipient];
+                if (!receiver) { errorEl.textContent = 'Получатель не найден'; return; }
+                if (sender.balanceUAH < amountUAH) { errorEl.textContent = 'Недостаточно средств'; return; }
+                sender.balanceUAH -= amountUAH;
+                receiver.balanceUAH = (receiver.balanceUAH || 0) + amountUAH;
+                const display = `${CURRENCY_SYMBOLS[currency]} ${amount.toFixed(2)} (${amountUAH.toFixed(2)} ₴)`;
+                const tx = { type: 'перевод', category: 'transfer', counterparty: recipient, amount: -amountUAH, displayAmount: display, currency, date: new Date().toISOString(), id: Date.now() + Math.random() };
+                const rxTx = { type: 'получение', category: 'transfer', counterparty: currentUser, amount: amountUAH, displayAmount: display, currency, date: new Date().toISOString(), id: Date.now() + Math.random() + 1 };
+                if (!sender.transactions) sender.transactions = [];
+                if (!receiver.transactions) receiver.transactions = [];
+                sender.transactions.unshift(tx);
+                receiver.transactions.unshift(rxTx);
+                await saveUser(currentUser, sender);
+                await saveUser(recipient, receiver);
+                showToast('✅ Перевод: ' + display + ' → ' + recipient, 'success');
+                document.getElementById('transfer-amount').value = '';
+                document.getElementById('transfer-recipient').value = '';
+                refreshDashboard();
+                refreshTransfers();
+            });
+        }
+
+        // ========== CRYPTO ==========
+        function initCrypto() {
+            document.getElementById('btn-buy-crypto').addEventListener('click', async () => {
+                const coin = document.getElementById('crypto-select').value;
+                const amountUAH = parseFloat(document.getElementById('crypto-amount-uah').value);
+                const errorEl = document.getElementById('crypto-error');
+                errorEl.textContent = '';
+                if (isNaN(amountUAH) || amountUAH <= 0) { errorEl.textContent = 'Введите сумму'; return; }
+                const user = await getCurrentUserData();
+                if (!user || user.balanceUAH < amountUAH) { errorEl.textContent = 'Недостаточно гривен'; return; }
+                const coinAmount = amountUAH / CRYPTO_RATES[coin];
+                user.balanceUAH -= amountUAH;
+                user.cryptoBalances[coin] = (user.cryptoBalances[coin] || 0) + coinAmount;
+                await saveUser(getCurrentUser(), user);
+                await addTransaction({ type: 'покупка крипто', category: 'crypto', counterparty: 'Биржа', amount: -amountUAH, displayAmount: `+ ${coinAmount.toFixed(8)} ${coin} (${amountUAH.toFixed(2)} ₴)`, currency: 'UAH' });
+                showToast(`🟢 Куплено: ${coinAmount.toFixed(8)} ${coin}`, 'success');
+                document.getElementById('crypto-amount-uah').value = '';
+                refreshCrypto();
+            });
+            document.getElementById('btn-sell-crypto').addEventListener('click', async () => {
+                const coin = document.getElementById('crypto-select').value;
+                const amountUAH = parseFloat(document.getElementById('crypto-amount-uah').value);
+                const errorEl = document.getElementById('crypto-error');
+                errorEl.textContent = '';
+                if (isNaN(amountUAH) || amountUAH <= 0) { errorEl.textContent = 'Введите сумму'; return; }
+                const user = await getCurrentUserData();
+                const coinAmount = amountUAH / CRYPTO_RATES[coin];
+                const userCoin = (user.cryptoBalances && user.cryptoBalances[coin]) || 0;
+                if (userCoin < coinAmount) { errorEl.textContent = 'Недостаточно ' + coin; return; }
+                user.cryptoBalances[coin] -= coinAmount;
+                user.balanceUAH += amountUAH;
+                await saveUser(getCurrentUser(), user);
+                await addTransaction({ type: 'продажа крипто', category: 'crypto', counterparty: 'Биржа', amount: amountUAH, displayAmount: `- ${coinAmount.toFixed(8)} ${coin} (${amountUAH.toFixed(2)} ₴)`, currency: 'UAH' });
+                showToast(`🔴 Продано: ${coinAmount.toFixed(8)} ${coin}`, 'success');
+                document.getElementById('crypto-amount-uah').value = '';
+                refreshCrypto();
+            });
+            document.getElementById('btn-crypto-transfer').addEventListener('click', async () => {
+                const recipient = document.getElementById('crypto-transfer-recipient').value.trim();
+                const coin = document.getElementById('crypto-transfer-coin').value;
+                const amount = parseFloat(document.getElementById('crypto-transfer-amount').value);
+                const errorEl = document.getElementById('crypto-transfer-error');
+                errorEl.textContent = '';
+                const cur = getCurrentUser();
+                if (!recipient) { errorEl.textContent = 'Укажите получателя'; return; }
+                if (recipient === cur) { errorEl.textContent = 'Нельзя самому себе'; return; }
+                if (isNaN(amount) || amount <= 0) { errorEl.textContent = 'Некорректное количество'; return; }
+                const all = await loadAllUsers();
+                const sender = all[cur];
+                const receiver = all[recipient];
+                if (!receiver) { errorEl.textContent = 'Получатель не найден'; return; }
+                const senderBal = (sender.cryptoBalances && sender.cryptoBalances[coin]) || 0;
+                if (senderBal < amount) { errorEl.textContent = 'Недостаточно ' + coin; return; }
+                sender.cryptoBalances[coin] -= amount;
+                receiver.cryptoBalances = receiver.cryptoBalances || { BTC: 0, ETH: 0 };
+                receiver.cryptoBalances[coin] = (receiver.cryptoBalances[coin] || 0) + amount;
+                await saveUser(cur, sender);
+                await saveUser(recipient, receiver);
+                const uahVal = amount * CRYPTO_RATES[coin];
+                await addTransaction({ type: 'крипто-перевод', category: 'crypto-transfer', counterparty: recipient, amount: -uahVal, displayAmount: `- ${amount.toFixed(8)} ${coin} (~${uahVal.toFixed(2)} ₴)`, currency: coin });
+                if (!receiver.transactions) receiver.transactions = [];
+                receiver.transactions.unshift({ type: 'крипто-получение', category: 'crypto-transfer', counterparty: cur, amount: uahVal, displayAmount: `+ ${amount.toFixed(8)} ${coin} (~${uahVal.toFixed(2)} ₴)`, currency: coin, date: new Date().toISOString(), id: Date.now() + Math.random() });
+                await saveUser(recipient, receiver);
+                showToast(`✅ Крипто-перевод: ${amount.toFixed(8)} ${coin} → ${recipient}`, 'success');
+                document.getElementById('crypto-transfer-amount').value = '';
+                document.getElementById('crypto-transfer-recipient').value = '';
+                refreshCrypto();
+            });
+        }
+
+        // ========== CARD ==========
+        function initCard() {
+            document.getElementById('btn-regenerate-card').addEventListener('click', async () => {
+                if (!confirm('Сгенерировать новую карту?')) return;
+                await updateCurrentUserData({ card: generateCardInfo() });
+                refreshCardPage();
+                showToast('💳 Новая карта сгенерирована!', 'success');
+            });
+            document.getElementById('btn-pay').addEventListener('click', async () => {
+                const amount = parseFloat(document.getElementById('payment-amount').value);
+                const errorEl = document.getElementById('payment-error');
+                errorEl.textContent = '';
+                if (isNaN(amount) || amount <= 0) { errorEl.textContent = 'Введите сумму'; return; }
+                const user = await getCurrentUserData();
+                if (!user || user.balanceUAH < amount) { errorEl.textContent = 'Недостаточно средств'; return; }
+                user.balanceUAH -= amount;
+                await saveUser(getCurrentUser(), user);
+                await addTransaction({ type: 'оплата картой', category: 'card', counterparty: 'Магазин', amount: -amount, displayAmount: `- ${amount.toFixed(2)} ₴`, currency: 'UAH' });
+                showToast(`💳 Оплата ${amount.toFixed(2)} ₴`, 'success');
+                document.getElementById('payment-amount').value = '';
+                refreshCardPage();
+            });
+        }
+
+        // ========== GAMES ==========
+        function initGames() {
+            document.getElementById('btn-clicker').addEventListener('click', async () => {
+                const user = await getCurrentUserData();
+                if (!user) return;
+                const earned = 0.1;
+                user.balanceUAH += earned;
+                user.clickCount = (user.clickCount || 0) + 1;
+                user.clickEarned = (user.clickEarned || 0) + earned;
+                await saveUser(getCurrentUser(), user);
+                document.getElementById('click-count').textContent = user.clickCount;
+                document.getElementById('click-earned').textContent = user.clickEarned.toFixed(2);
+                document.getElementById('balance-uah').textContent = user.balanceUAH.toFixed(2) + ' ₴';
+                const btn = document.getElementById('btn-clicker');
+                btn.style.transform = 'scale(0.88)';
+                setTimeout(() => btn.style.transform = '', 100);
+            });
+            document.getElementById('btn-risk').addEventListener('click', async () => {
+                const user = await getCurrentUserData();
+                if (!user) return;
+                const outcomes = [-1, 0.5, 1, 2, 3];
+                const result = outcomes[Math.floor(Math.random() * outcomes.length)];
+                user.balanceUAH += result;
+                if (user.balanceUAH < 0) user.balanceUAH = 0;
+                await saveUser(getCurrentUser(), user);
+                const resultEl = document.getElementById('risk-result');
+                resultEl.innerHTML = result >= 0 ? `<span class="positive">+${result.toFixed(2)} ₴ 🎉</span>` : `<span class="negative">${result.toFixed(2)} ₴ 😞</span>`;
+                document.getElementById('balance-uah').textContent = user.balanceUAH.toFixed(2) + ' ₴';
+                await addTransaction({ type: 'риск-игра', category: 'game', counterparty: 'Система', amount: result, displayAmount: (result>=0?'+':'')+result.toFixed(2)+' ₴', currency: 'UAH' });
+            });
+        }
+
+        // ========== PROFILE ==========
+        function initProfile() {
+            document.getElementById('btn-upload-avatar').addEventListener('click', () => document.getElementById('avatar-input').click());
+            document.getElementById('avatar-input').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 200*1024) { showToast('Файл слишком большой', 'error'); return; }
+                const reader = new FileReader();
+                reader.onload = async (ev) => {
+                    await updateCurrentUserData({ avatar: ev.target.result });
+                    document.getElementById('avatar-preview').src = ev.target.result;
+                    document.getElementById('sidebar-avatar').src = ev.target.result;
+                    showToast('📷 Аватар обновлён', 'success');
+                };
+                reader.readAsDataURL(file);
+            });
+            document.getElementById('btn-change-name').addEventListener('click', async () => {
+                const newName = document.getElementById('new-username').value.trim();
+                const errorEl = document.getElementById('profile-error');
+                errorEl.textContent = '';
+                if (!newName || newName.length < 1 || newName.length > 10) { errorEl.textContent = '1-10 символов'; return; }
+                if (!/^[a-zA-Zа-яА-ЯёЁ0-9_]+$/.test(newName)) { errorEl.textContent = 'Только буквы, цифры и _'; return; }
+                const all = await loadAllUsers();
+                if (all[newName] && newName !== getCurrentUser()) { errorEl.textContent = 'Имя занято'; return; }
+                const cur = getCurrentUser();
+                const userData = all[cur];
+                userData.name = newName;
+                await saveUser(newName, userData);
+                if (newName !== cur) await db.ref('users/' + cur).remove();
+                setCurrentUser(newName);
+                updateSidebar(userData);
+                showToast('✏️ Имя изменено на ' + newName, 'success');
+                document.getElementById('new-username').value = '';
+            });
+        }
+
+        // ========== SETTINGS ==========
+        function initTheme() {
+            document.getElementById('theme-light').addEventListener('click', async () => {
+                await updateCurrentUserData({ theme: 'light' });
+                applyTheme('light');
+                document.getElementById('theme-light').classList.add('active-theme');
+                document.getElementById('theme-dark').classList.remove('active-theme');
+            });
+            document.getElementById('theme-dark').addEventListener('click', async () => {
+                await updateCurrentUserData({ theme: 'dark' });
+                applyTheme('dark');
+                document.getElementById('theme-dark').classList.add('active-theme');
+                document.getElementById('theme-light').classList.remove('active-theme');
+            });
+            document.getElementById('btn-reset-account').addEventListener('click', async () => {
+                if (!confirm('Удалить аккаунт безвозвратно?')) return;
+                const cur = getCurrentUser();
+                await db.ref('users/' + cur).remove();
+                showToast('🗑️ Аккаунт удалён', 'error');
+                showAuthScreen();
+            });
+        }
+
+        // ========== INIT ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            initAuth();
+            initFinance();
+            initCrypto();
+            initCard();
+            initGames();
+            initProfile();
+            initTheme();
+
+            document.getElementById('nav-menu').addEventListener('click', e => {
+                const navItem = e.target.closest('.nav-item');
+                if (!navItem) return;
+                const page = navItem.dataset.page;
+                if (page) navigateTo(page);
+            });
+
+            // Автообновление топа каждые 30 секунд
+            setInterval(async () => {
+                if (getCurrentUser() && document.getElementById('page-top-users').classList.contains('active')) {
+                    await refreshTopUsers();
+                }
+            }, 30000);
+
+            // Старт
+            (async () => {
+                const cur = getCurrentUser();
+                if (cur && (await loadAllUsers())[cur]) {
+                    showMainScreen();
+                } else {
+                    showAuthScreen();
+                }
+            })();
+        });
+    </script>
+</body>
+</html>
